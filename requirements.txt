@@ -6,4 +6,6 @@ scikit-learn
 xlsxwriter
 transformers
 scipy>=1.7.3
-torch 
+torch
+matplotlib
+seaborn
