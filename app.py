@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import re
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 from bs4 import BeautifulSoup
@@ -69,7 +71,90 @@ if uploaded_file is not None:
     # Apply keyword-based classification
     df['Transaction Type'] = [classify_with_keywords(receiver_names[i], predicted_labels[i]) for i in range(len(df))]
 
-    # Display the processed data as a Streamlit table
-    st.table(df)
+    # Export data to Excel and remove "Category." part from Transaction Type column
+    df['Transaction Type'] = df['Transaction Type'].str.replace("Category.", "")
+
+    # Save DataFrame to Excel without wrapping text
+    excel_file_path = 'extracted_data_with_transaction_type_and_keywords.xlsx'
+    df.to_excel(excel_file_path, index=False)
     
-    st.success('Data processed and displayed as a Streamlit table')
+    # Provide download link to the processed data in Excel format
+    st.download_button(
+        label="Download processed data",
+        data=open(excel_file_path, 'rb'),
+        file_name=excel_file_path,
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+    st.success('Data extracted and download button added')
+
+# Convert 'Amount' column to float
+df['Amount'] = df['Amount'].str.replace('₹', '').str.replace(',', '').astype(float)
+
+# Clean and convert 'Date' column to datetime
+df['Date'] = pd.to_datetime(df['Date'], format='%b %d, %Y, %H:%M:%S')
+
+# Define functions for analysis
+
+def overview_section():
+    total_transactions = len(df)
+    total_amount_spent = df['Amount'].sum()
+    average_transaction_amount = df['Amount'].mean()
+    min_transaction_amount = df['Amount'].min()
+    max_transaction_amount = df['Amount'].max()
+
+    st.subheader('Summary Statistics')
+    st.write(f"Total Transactions: {total_transactions}")
+    st.write(f"Total Amount Spent: ₹{total_amount_spent:.2f}")
+    st.write(f"Average Transaction Amount: ₹{average_transaction_amount:.2f}")
+    st.write(f"Minimum Transaction Amount: ₹{min_transaction_amount}")
+    st.write(f"Maximum Transaction Amount: ₹{max_transaction_amount}")
+
+    st.subheader('Preview of DataFrame')
+    if st.checkbox('Show DataFrame Preview'):
+        st.write(df.head())
+
+def transaction_type_analysis():
+    st.subheader('Transaction Type Analysis')
+
+    # Pie chart for transaction types
+    transaction_type_counts = df['Transaction Type'].value_counts()
+    st.write(transaction_type_counts)
+
+    # Plotting a Pie Chart
+    plt.figure(figsize=(8, 8))
+    plt.pie(transaction_type_counts, labels=transaction_type_counts.index, autopct='%1.1f%%', startangle=140)
+    plt.title('Transaction Type Distribution')
+    plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+    st.pyplot()
+
+def category_spending_analysis():
+    st.subheader('Category-wise Spending Analysis')
+
+    # Bar chart for category-wise spending
+    category_spending = df.groupby('Transaction Type')['Amount'].sum()
+    st.bar_chart(category_spending)
+
+def receiver_analysis():
+    st.subheader('Receiver-wise Analysis')
+
+    # Horizontal bar chart for top receivers
+    top_receivers = df.groupby('Receiver')['Amount'].sum().nlargest(10)
+    st.bar_chart(top_receivers)
+
+def date_analysis():
+    st.subheader('Timeline Analysis')
+
+    # Line chart for monthly spending trend
+    monthly_spending = df.groupby(df['Date'].dt.to_period('M'))['Amount'].sum()
+    st.line_chart(monthly_spending)
+
+# Define the layout of your Streamlit app
+st.title('Transaction Data Analysis')
+
+# Sections for different types of analysis
+overview_section()
+transaction_type_analysis()
+category_spending_analysis()
+receiver_analysis()
+date_analysis()
