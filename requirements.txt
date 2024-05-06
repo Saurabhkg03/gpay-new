@@ -1,0 +1,9 @@
+beautifulsoup4
+pandas
+tensorflow-hub
+tensorflow
+scikit-learn
+xlsxwriter
+transformers
+scipy>=1.7.3
+torch 
